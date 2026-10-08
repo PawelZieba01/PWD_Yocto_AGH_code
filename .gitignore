@@ -1,0 +1,5 @@
+# Katalog builda
+/build/
+
+# Poky to osobne repozytorium (fork), zarządzane własnym gitem
+/poky/

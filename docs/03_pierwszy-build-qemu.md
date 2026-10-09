@@ -1,82 +1,80 @@
-# Pierwszy build i uruchomienie systemu w QEMU (propozycja treści)
+# Rozdział 3. Pierwszy build i uruchomienie systemu w QEMU (szkielet)
 
-Zakres: rozdział 3 z `Zawartość pracy.md` (3.2–3.4). Wersja Yocto: **Scarthgap**.
-Maszyna: `qemux86-64` (emulowany komputer PC). Obraz: `core-image-minimal`.
-Status: propozycja; komendy nie zostały jeszcze potwierdzone pełnym przebiegiem.
+Status: pełny przebieg builda i uruchomienia obrazu w QEMU został
+zweryfikowany dla Yocto Scarthgap i maszyny `qemux86-64`.
+
+Ustalenia: Yocto **Scarthgap**, maszyna `qemux86-64` (emulowany komputer PC),
+obraz `core-image-minimal`, narzędzia w kontenerze `crops/poky:ubuntu-22.04`.
 
 ## Co chcemy osiągnąć
 
-Zbudować minimalny obraz Linuksa dla emulowanego PC i uruchomić go w QEMU z
-dostępem do konsoli. Uczestnik poznaje przebieg: pobranie Poky, inicjalizacja
-środowiska builda, wybór maszyny i obrazu, `bitbake`, `runqemu`.
+Zbudować od zera minimalny system Linux dla emulowanego komputera PC i
+uruchomić go w QEMU z dostępem do konsoli. Pozwala to poznać cały przebieg
+pracy z Yocto bez fizycznej płytki: pobranie źródeł, przygotowanie środowiska,
+wybór maszyny i obrazu, budowanie oraz start systemu.
+
+Dlaczego od QEMU: build i uruchomienie nie wymagają sprzętu, błędy
+konfiguracji widać od razu, a ten sam przebieg zastosujemy później dla
+Raspberry Pi.
+
+Rezultat: obraz w `build/tmp/deploy/images/qemux86-64/` i działająca konsola
+w QEMU.
 
 ## Jak to osiągnąć
 
-1. **Układ repozytoriów.** Pracujemy na trzech repozytoriach: dokumenty
-   (`PWD_Yocto_AGH`), repozytorium kodu (`PWD_Yocto_AGH_code`) oraz fork Poky.
-   Fork Poky jest klonowany do `poky/` wewnątrz repozytorium kodu i ma własny
-   git: remote `upstream` wskazuje oficjalne Poky (źródło aktualizacji gałęzi
-   `scarthgap`), a `origin` — nasz fork, do którego pushujemy. W forku trzymamy
-   tylko kod. Repozytorium kodu ignoruje `poky/` i `build/` w `.gitignore`.
-2. **Kontener.** Narzędzia Yocto działają w kontenerze `crops/poky:ubuntu-22.04`.
-   Kontener uruchamiamy z `sudo`, a repozytorium montujemy jako `/workdir`.
-3. **Poky.** Klonujemy gałąź `scarthgap` z oficjalnego
-   `https://git.yoctoproject.org/poky` (lub z forka — adres do uzupełnienia).
-   Protokół `git://` bywa blokowany, a klonowanie wtedy zawiesza się bez błędu.
-4. **Środowisko builda.** `source poky/oe-init-build-env build` tworzy `build/conf`
-   (`local.conf`, `bblayers.conf`) i przełącza powłokę do `build/`.
-5. **Maszyna i obraz.** W `build/conf/local.conf` maszyną jest `qemux86-64`.
-   Obraz `core-image-minimal` wskazujemy poleceniem `bitbake`.
-6. **Uruchomienie.** `runqemu` startuje obraz; `nographic` kieruje konsolę do
-   terminala, a `slirp` zapewnia sieć bez uprawnień do interfejsów TAP.
+1. **Układ projektu.** Repozytorium kodu zawiera `docs/`, a Poky dołączamy
+   jako submoduł git w `poky/`, przypięty do gałęzi `scarthgap`. Submoduł dodaje
+   polecenie `git submodule add -b <gałąź> <adres> <katalog>`; zapisuje ono adres
+   w `.gitmodules` i przypina konkretny commit. Własne warstwy będą osobnymi
+   repozytoriami (od rozdziału 5). Katalog `build/` jest ignorowany.
+2. **Kontener.** Narzędzia Yocto uruchamiamy w `crops/poky:ubuntu-22.04` poleceniem
+   `docker run` (z `sudo`). Opcja `-v <katalog>:/workdir` montuje repozytorium
+   w kontenerze, `--workdir=/workdir` ustawia katalog roboczy, a `-it` daje
+   interaktywną powłokę.
+3. **Środowisko builda.** `source poky/oe-init-build-env build` tworzy
+   `build/conf` (`local.conf`, `bblayers.conf`) i przełącza do `build/`.
+4. **Maszyna i obraz.** Maszynę ustawia `MACHINE` w `local.conf`
+   (`qemux86-64`), a obraz wskazujemy jako argument `bitbake`.
+5. **Budowanie.** `bitbake <obraz>` pobiera źródła, kompiluje pakiety i składa obraz.
+   Wyniki trafiają do `build/tmp/deploy/images/<maszyna>/`.
+6. **Uruchomienie.** `runqemu <maszyna> nographic slirp` uruchamia obraz
+   zbudowany dla wskazanej maszyny; `runqemu` odnajduje go w aktywnym
+   środowisku builda. Opcja `nographic` kieruje konsolę do terminala, a
+   `slirp` zapewnia sieć bez uprawnień do interfejsów TAP. Emulator zamykamy
+   `Ctrl+A`, potem `X`.
 
-## Zadanie do wykonania
+## Wykonana weryfikacja
 
-1. Przejdź do repozytorium kodu na gałąź zadania i sprawdź, że jesteś na niej.
-2. Uruchom kontener `crops/poky:ubuntu-22.04` z repozytorium jako katalogiem
-   roboczym (z `sudo`).
-3. W kontenerze pobierz Poky w gałęzi `scarthgap`.
-4. Zainicjuj katalog builda `build` i sprawdź w `local.conf`, że maszyną jest
-   `qemux86-64`.
-5. Zbuduj obraz `core-image-minimal` i sprawdź zawartość katalogu z artefaktami.
-6. Uruchom obraz w QEMU bez okna graficznego, zaloguj się i sprawdź wersję
-   jądra. Zamknij emulator.
-
-Weryfikacja: build kończy się bez błędów, w `build/tmp/deploy/images/qemux86-64/`
-są artefakty obrazu, a w QEMU dostępna jest konsola.
+1. Oficjalne Poky Scarthgap jest dołączone jako submoduł z przypiętym commitem.
+2. Środowisko Yocto uruchomiono w kontenerze z repozytorium widocznym pod
+   `/workdir`.
+3. Zbudowano `core-image-minimal` dla `qemux86-64`; artefakty znajdują się w
+   `build/tmp/deploy/images/qemux86-64/`.
+4. Obraz uruchomiono w QEMU bez okna graficznego z konsolą tekstową.
 
 ## Pełne rozwiązanie
 
+Na hoście, w repozytorium kodu:
+
 ```bash
 cd ~/PWD_Yocto/PWD_Yocto_AGH_code
-git branch --show-current          # 03_qemu-first-build
-
-sudo docker run --rm -it -v "$PWD":/workdir crops/poky:ubuntu-22.04 --workdir=/workdir
+git submodule add -b scarthgap https://git.yoctoproject.org/poky poky
+sudo docker run --rm -it -v "$PWD":/workdir --workdir=/workdir crops/poky:ubuntu-22.04
 ```
 
 W kontenerze:
 
 ```bash
-git clone -b scarthgap https://git.yoctoproject.org/poky
 source poky/oe-init-build-env build
-grep -n '^MACHINE' conf/local.conf     # MACHINE ??= "qemux86-64"
 bitbake core-image-minimal
 ls tmp/deploy/images/qemux86-64/
-runqemu qemux86-64 core-image-minimal nographic slirp
+runqemu qemux86-64 nographic slirp
 ```
 
 W QEMU: login `root` (bez hasła), `uname -r`, wyjście `Ctrl+A`, potem `X`.
 
-## Uwagi
+## Do uzupełnienia
 
-- Pierwszy build trwa długo i pobiera dużo źródeł.
-- Opcjonalnie `--device /dev/kvm` w `docker run` przyspiesza QEMU, jeśli host
-  ma KVM.
-- `poky/` ma własne repozytorium git, więc repozytorium kodu go nie śledzi.
-  Zmiany w Poky commitujemy i pushujemy w `poky/` do forka.
-
-## Pytania otwarte
-
-- Adres forka Poky i nazwa gałęzi roboczej (do uzupełnienia).
-- Czy własne warstwy (`meta-course`) mają być w forku Poky (obok `meta/`),
-  czy w repozytorium kodu obok `poky/`.
+- Wyjaśnienie roli BitBake, receptur i konfiguracji (3.1).
+- Objaśnienie zmiennych w `local.conf` oraz wyniku `bitbake`.
+- Typowe problemy: zawieszone klonowanie przez `git://`, brak KVM.
